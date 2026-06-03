@@ -62,9 +62,9 @@ export default function Home() {
   }
 
   async function getSkinUrl(filePath) {
-    const { data } = await supabase.storage.from('skins').createSignedUrl(filePath, 60 * 60 * 24 * 7)
-    navigator.clipboard.writeText(data.signedUrl)
-    alert('URL dicopy! Berlaku 7 hari. Tempel di SkinsRestorer: /skin set url [URL]')
+const { data } = supabase.storage.from('skins').getPublicUrl(filePath)
+navigator.clipboard.writeText(data.publicUrl)
+    alert('URL dicopy! permanen. Tempel di SkinsRestorer: /skin set url [URL]')
   }
 
   if (!session) {
