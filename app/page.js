@@ -9,98 +9,73 @@ const supabase = createClient(
 )
 
 export default function Page() {
-  const [skins, setSkins] = useState([])
+  const [user, setUser] = useState(null)
   const [file, setFile] = useState(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    fetchSkins()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user)
+    })
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user?? null)
+    })
   }, [])
 
-  const fetchSkins = async () => {
-    const { data } = await supabase.from('skins').select('*').order('created_at', { ascending: false })
-    setSkins(data || [])
+  async function loginWithGoogle() {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+    })
   }
 
-  const handleUpload = async () => {
-    if (!file) return alert('Pilih file dulu bro')
+  async function logout() {
+    await supabase.auth.signOut()
+  }
+
+  async function handleUpload() {
+    if (!file ||!user) return alert('Login dulu atau pilih file dulu')
     setLoading(true)
 
+    // UPLOAD KE FOLDER user.id/namafile.jpg
     const fileName = `${Date.now()}_${file.name}`
-    const { error: uploadError } = await supabase.storage.from('skins').upload(fileName, file)
+    const { error } = await supabase.storage
+     .from('skins') // GANTI 'skins' JADI NAMA BUCKET LU
+     .upload(`${user.id}/${fileName}`, file)
 
-    if (uploadError) {
-      alert('Upload gagal: ' + uploadError.message)
-      setLoading(false)
-      return
-    }
-
-    const { data: { publicUrl } } = supabase.storage.from('skins').getPublicUrl(fileName)
-
-    await supabase.from('skins').insert({ name: fileName, url: publicUrl })
-
-    setFile(null)
-    document.getElementById('fileInput').value = null
-    fetchSkins()
     setLoading(false)
-    alert('Upload berhasil!')
+    if (error) {
+      alert('Gagal upload: ' + error.message)
+    } else {
+      alert('Sukses upload ke folder: ' + user.id)
+      setFile(null)
+    }
   }
 
-  const handleDelete = async (fileName) => {
-    if (!confirm('Yakin mau hapus skin ini?')) return
-
-    // 1. Hapus dari Storage
-    const { error: storageError } = await supabase.storage.from('skins').remove([fileName])
-    if (storageError) return alert('Gagal hapus file: ' + storageError.message)
-
-    // 2. Hapus dari Database
-    const { error: dbError } = await supabase.from('skins').delete().eq('name', fileName)
-    if (dbError) return alert('Gagal hapus data: ' + dbError.message)
-
-    // 3. Refresh list
-    fetchSkins()
-    alert('Skin berhasil dihapus')
-  }
-
-  const copyUrl = (url) => {
-    navigator.clipboard.writeText(url)
-    alert('URL berhasil dicopy!')
+  if (!user) {
+    return (
+      <div style={{ padding: 50 }}>
+        <h1>Login Dulu Sayang</h1>
+        <button onClick={loginWithGoogle} style={{ padding: 10, fontSize: 16 }}>
+          Login with Google
+        </button>
+      </div>
+    )
   }
 
   return (
-    <div className="container">
-      <div className="header">
-        <h1>Skin Manager 19JT</h1>
-      </div>
-
-      <div className="upload-box">
-        <h2>Upload Skin Baru</h2>
-        <label htmlFor="fileInput" className="upload-area">
-          {file? file.name : 'Klik untuk pilih file PNG'}
-        </label>
-        <input
-          id="fileInput"
-          type="file"
-          accept=".png"
-          onChange={(e) => setFile(e.target.files[0])}
-          style={{ display: 'none' }}
-        />
-        <button onClick={handleUpload} disabled={loading}>
-          {loading? 'Uploading...' : 'Upload Skin'}
-        </button>
-      </div>
-
-      <h2>Galeri Skin</h2>
-      <div className="grid">
-        {skins.map((skin) => (
-          <div key={skin.id} className="skin-item">
-            <img src={skin.url} alt={skin.name} className="skin-preview" />
-            <p>{skin.name}</p>
-            <button onClick={() => copyUrl(skin.url)}>Copy URL</button>
-            <button className="delete-btn" onClick={() => handleDelete(skin.name)}>Hapus</button>
-          </div>
-        ))}
-      </div>
+    <div style={{ padding: 50 }}>
+      <h1>Hai {user.email}</h1>
+      <p>User ID lu: {user.id}</p>
+      <button onClick={logout}>Logout</button>
+      <br /><br />
+      
+      <h2>Upload Skins</h2>
+      <input type="file" onChange={(e) => setFile(e.target.files[0])} />
+      <br /><br />
+      <button onClick={handleUpload} disabled={loading}>
+        {loading? 'Uploading...' : 'Upload'}
+      </button>
     </div>
   )
 }
