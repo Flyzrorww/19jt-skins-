@@ -1,6 +1,12 @@
-19jt-skins-
-├── app/
-│   ├── layout.js  ← INI YANG KURANG
-│   └── page.js
-├── next.config.js
-└── package.json
+export const metadata = {
+  title: '19jt Skins',
+  description: 'Website AI Skin ML',
+}
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  )
+}
