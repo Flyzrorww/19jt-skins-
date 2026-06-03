@@ -1,6 +1,8 @@
 'use client'
 import { createClient } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
+import { Auth } from '@supabase/auth-ui-react'
+import { ThemeSupa } from '@supabase/auth-ui-shared'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -8,40 +10,91 @@ const supabase = createClient(
 )
 
 export default function Home() {
+  const [session, setSession] = useState(null)
   const [skins, setSkins] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
-    getSkins()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+    })
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
   }, [])
 
+  useEffect(() => {
+    if (session) getSkins()
+  }, [session])
+
   async function getSkins() {
-    const { data } = await supabase.from('skins').select('*')
+    const { data } = await supabase.from('skins').select('*').order('created_at', { ascending: false })
     setSkins(data || [])
-    setLoading(false)
+  }
+
+  async function uploadSkin(event) {
+    try {
+      setUploading(true)
+      if (!event.target.files || event.target.files.length === 0) return
+
+      const file = event.target.files[0]
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Math.random()}.${fileExt}`
+      const filePath = `${session.user.id}/${fileName}`
+
+      let { error: uploadError } = await supabase.storage.from('skins').upload(filePath, file)
+      if (uploadError) throw uploadError
+
+      const { error: dbError } = await supabase.from('skins').insert({
+        name: file.name,
+        file_path: filePath,
+        user_id: session.user.id
+      })
+      if (dbError) throw dbError
+      
+      getSkins()
+    } catch (error) {
+      alert(error.message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function getSkinUrl(filePath) {
+    const { data } = await supabase.storage.from('skins').createSignedUrl(filePath, 60 * 60 * 24 * 7)
+    navigator.clipboard.writeText(data.signedUrl)
+    alert('URL dicopy! Berlaku 7 hari. Tempel di SkinsRestorer: /skin set url [URL]')
+  }
+
+  if (!session) {
+    return (
+      <div style={{ maxWidth: 420, margin: '100px auto', padding: 20 }}>
+        <h1>Login Dulu Bro</h1>
+        <Auth supabaseClient={supabase} appearance={{ theme: ThemeSupa }} providers={[]} />
+      </div>
+    )
   }
 
   return (
-    <div style={{padding: 20, background: '#111', color: 'white', minHeight: '100vh'}}>
-      <h1 style={{fontSize: 40, fontWeight: 'bold'}}>Fajri Skins 🔥</h1>
-      <p style={{color: '#aaa', marginBottom: 20}}>Jual Skin Game Private - 19JT READY</p>
+    <div style={{ padding: 40, fontFamily: 'sans-serif', background: '#111', color: '#fff', minHeight: '100vh' }}>
+      <h1>Skin Server Fajri 🔥</h1>
+      <button onClick={() => supabase.auth.signOut()}>Logout</button>
       
-      {loading ? <p>Loading...</p> : 
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 20}}>
-          {skins.length === 0 ? <p>Belum ada skin. Tambah di Supabase dulu.</p> :
-          skins.map(skin => (
-            <div key={skin.id} style={{border: '1px solid #333', borderRadius: 12, padding: 16}}>
-              <img src={skin.image_url} style={{width: '100%', borderRadius: 8}} />
-              <h3 style={{marginTop: 10}}>{skin.name}</h3>
-              <p style={{color: '#4ade80', fontWeight: 'bold'}}>Rp {skin.price?.toLocaleString()}</p>
-              <a href={`https://wa.me/628xxxx?text=Mau beli ${skin.name}`} 
-                 style={{background: '#25D366', padding: '8px 12px', borderRadius: 8, display: 'block', textAlign: 'center', color: 'white', textDecoration: 'none', marginTop: 10}}>
-                 Beli via WA
-              </a>
-            </div>
-          ))}
+      <div style={{ margin: '20px 0' }}>
+        <label style={{ background: '#333', padding: 12, borderRadius: 8, cursor: 'pointer' }}>
+          {uploading? 'Uploading...' : 'Upload Skin PNG'}
+          <input style={{ display: 'none' }} type="file" accept="image/png" onChange={uploadSkin} disabled={uploading} />
+        </label>
+      </div>
+
+      <h2>Skin Lu:</h2>
+      {skins.map((skin) => (
+        <div key={skin.id} style={{ background: '#222', padding: 16, margin: '10px 0', borderRadius: 8 }}>
+          <b>{skin.name}</b>
+          <button onClick={() => getSkinUrl(skin.file_path)} style={{ marginLeft: 10 }}>Copy URL</button>
         </div>
-      }
+      ))}
     </div>
   )
 }
