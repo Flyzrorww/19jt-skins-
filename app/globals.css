@@ -1,0 +1,31 @@
+body { background: #0f172a; color: white; font-family: sans-serif; margin: 0; }
+.container { max-width: 900px; margin: 40px auto; padding: 20px; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+h1, h2 { text-align: center; }
+.upload-box { background: #1e293b; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 40px; }
+.upload-area {
+  border: 2px dashed #475569; padding: 40px; display: block;
+  border-radius: 8px; cursor: pointer; margin-bottom: 16px;
+}
+.upload-area:hover { border-color: #3b82f6; background: #334155; }
+button {
+  background: #3b82f6; border: none; padding: 10px 20px;
+  border-radius: 8px; color: white; cursor: pointer; font-weight: bold;
+}
+button:hover { background: #2563eb; }
+.logout-btn { background: #64748b; }
+.grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px; margin-top: 20px;
+}
+.skin-item {
+  background: #1e293b; padding: 16px; border-radius: 12px; text-align: center;
+}
+.skin-item p { font-size: 12px; word-break: break-all; height: 30px; }
+.skin-preview {
+  width: 64px; height: 64px; image-rendering: pixelated;
+  background: #0f172a; border-radius: 4px; margin-bottom: 10px;
+}
+.delete-btn { background: #ef4444; margin-left: 8px; }
+.delete-btn:hover { background: #dc2626; }
+.auth-container { max-width: 420px; margin: 100px auto; padding: 20px; }
